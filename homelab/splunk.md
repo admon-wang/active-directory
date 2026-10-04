@@ -45,18 +45,13 @@ In order to verify that our Splunk machine is set up and has external access, we
 ping -c 3 8.8.8.8
 ```
 
-<img width="450" height="42" alt="image" src="https://github.com/user-attachments/assets/90cce9a7-8af8-4d67-92ab-b613a43e7d83" />
-
 ### The Hurdle: "Destination Host Unreachable"
 While the tutorial (using VirtualBox) used `192.168.10.1` as the gateway, running ping on my VMware setup returned:
 ```text
 From 192.168.10.10 icmp_seq=1 Destination Host Unreachable
 ```
 
-#### What I Learned:
-- In **VirtualBox NAT networks**, `.1` typically serves as the virtual router/gateway.
-- In **VMware Workstation/Player NAT**, the host virtual adapter takes `.1`, while the **actual NAT gateway is `.2`** (`192.168.10.2`).
-- Setting `.1` caused the VM to send ARP requests looking for a gateway MAC address that did not exist on that IP, dropping all external traffic.
+<img width="658" height="151" alt="image" src="https://github.com/user-attachments/assets/0421f4f6-ea5c-447e-acb3-57860804b3da" />
 
 #### How I Resolved It:
 1. Opened VMware **Virtual Network Editor** as Administrator.
@@ -72,19 +67,21 @@ From 192.168.10.10 icmp_seq=1 Destination Host Unreachable
    ```
 4. Ran `sudo netplan apply` and re-tested. Outbound ping succeeded with 0% packet loss!
 
+<img width="703" height="128" alt="image" src="https://github.com/user-attachments/assets/c174e599-7d6c-490c-af20-6e09c3545235" />
+
+
+#### What I Learned:
+- In **VirtualBox NAT networks**, `.1` typically serves as the virtual router/gateway.
+- In **VMware Workstation/Player NAT**, the host virtual adapter takes `.1`, while the **actual NAT gateway is `.2`** (`192.168.10.2`).
+- Setting `.1` caused the VM to send ARP requests looking for a gateway MAC address that did not exist on that IP, dropping all external traffic.
+
 ---
 
 ## 3. Package Management & APT Lock Contention
 
 Before installing guest tools, running `sudo apt update` returned:
-```text
-Error: Could not get lock /var/lib/apt/lists/lock. It is held by process 3523 (apt-get)
-Error: Unable to lock directory /var/lib/apt/lists/
-```
 
-### What I Learned:
-- Ubuntu Server triggers background services like `unattended-upgrades` immediately upon boot and network acquisition to look for security updates.
-- Because `apt` enforces a single active writer to prevent package database corruption, manual commands fail if a background task holds the lock.
+<img width="808" height="283" alt="image" src="https://github.com/user-attachments/assets/d9adc929-4aa1-49b5-afe9-222d6304e124" />
 
 ### How I Resolved It:
 1. Terminated the lingering process holding the lock (`sudo kill -9 3523`).
@@ -96,6 +93,10 @@ Error: Unable to lock directory /var/lib/apt/lists/
    sudo dpkg --configure -a
    ```
 3. Re-ran `sudo apt update`, which completed smoothly.
+
+### What I Learned:
+- Ubuntu Server triggers background services like `unattended-upgrades` immediately upon boot and network acquisition to look for security updates.
+- Because `apt` enforces a single active writer to prevent package database corruption, manual commands fail if a background task holds the lock.
 
 ---
 
