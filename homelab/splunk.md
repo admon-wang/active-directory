@@ -161,3 +161,138 @@ ls -la
 
 
 The share directory is mounted, assigned to our user (`mydfir` / UID 1000), and the Splunk installation `.deb` package is ready for installation.
+
+---
+
+## 5. Installing and Initializing Splunk
+
+Now that our shared folder is properly mounted and we can see the installer, it is time to actually install Splunk onto the Ubuntu server.
+
+### Running the Installer
+Inside the `share` directory, we run the Debian package manager to install the `.deb` file:
+
+```bash
+sudo dpkg -i splunk-*.deb
+```
+
+Splunk is installed under `/opt/splunk`.
+
+<img width="795" height="290" alt="image" src="https://github.com/user-attachments/assets/823ff219-1e6d-4638-8b6c-1b71be51b671" />
+
+### Starting Splunk
+
+I do not want to run Splunk as `root` because a vulnerability in the service could potentially give an attacker full control of the server. Using the dedicated `splunk` user limits the service's permissions.
+
+```bash
+cd /opt/splunk
+sudo -u splunk bash
+cd bin
+./splunk start
+```
+
+During the first startup, press `q` to skip to the end of the license, type `y` to accept it, and create the Splunk administrator account.
+
+### Enabling Boot-Start
+
+After leaving the `splunk` user shell, enable Splunk to start automatically after a reboot:
+
+```bash
+exit
+sudo /opt/splunk/bin/splunk enable boot-start -user splunk
+```
+
+<img width="352" height="37" alt="image" src="https://github.com/user-attachments/assets/3d879692-b715-4990-b405-90b6dc36dc8f" />
+
+#### What I Learned
+
+Running Splunk as a dedicated service user follows the principle of least privilege and reduces the impact of a possible compromise.
+
+---
+
+## 6. Configuring the Splunk Web Interface
+
+Splunk Web is available at:
+
+```text
+http://192.168.10.10:8000
+```
+
+<img width="600" alt="placeholder" src="[INSERT_IMAGE_LINK]" />
+
+### Creating the `endpoint` Index
+
+#### What I Learned
+
+Splunk indexes are where incoming events are stored. I need an index called `endpoint` because the Windows forwarder will later be configured to send Sysmon and Security events to this index.
+
+From Splunk Web:
+
+1. Go to **Settings > Indexes**.
+2. Select **New Index**.
+3. Name it `endpoint`.
+4. Save.
+
+<img width="600" alt="placeholder" src="[INSERT_IMAGE_LINK]" />
+
+### Opening Port 9997
+
+#### What I Learned
+
+Port `8000` is used for Splunk Web, while port `9997` is used by Splunk Universal Forwarders to send data to the Splunk server.
+
+From Splunk Web:
+
+1. Go to **Settings > Forwarding and Receiving**.
+2. Select **Configure Receiving**.
+3. Choose **New Receiving Port**.
+4. Enter `9997`.
+5. Save.
+
+<img width="600" alt="placeholder" src="[INSERT_IMAGE_LINK]" />
+
+---
+
+## 7. Preparing the Target Machine (Windows)
+
+Now that the Splunk server is ready to receive data, I can prepare the Windows target machine that will generate the logs.
+
+### Setting the Hostname
+
+I rename the Windows machine to `Target-PC` through **System Properties** and restart it.
+
+<img width="600" alt="placeholder" src="[INSERT_IMAGE_LINK]" />
+
+#### What I Learned
+
+Using a clear hostname makes it easier to identify the machine when its events appear in Splunk.
+
+### Setting a Static IP
+
+I configure the Windows machine with:
+
+```text
+IP Address:    192.168.10.100
+Subnet Mask:   255.255.255.0
+Gateway:       192.168.10.2
+DNS:           8.8.8.8
+```
+
+<img width="600" alt="placeholder" src="[INSERT_IMAGE_LINK]" />
+
+The Splunk server uses `192.168.10.10`, so the Windows target gets `.100` to keep the addresses separate.
+
+#### What I Learned
+
+The gateway is `192.168.10.2` because this is the VMware NAT gateway identified earlier in the lab.
+
+### Verifying Connectivity
+
+From the Windows Command Prompt:
+
+```cmd
+ping 192.168.10.10
+```
+
+<img width="600" alt="placeholder" src="[INSERT_IMAGE_LINK]" />
+
+A successful ping confirms that the Windows target can reach the Splunk server. This gives me a working network connection before I install and configure the Universal Forwarder.
