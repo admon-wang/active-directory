@@ -209,15 +209,19 @@ Running Splunk as a dedicated service user follows the principle of least privil
 
 ---
 
-## 6. Configuring the Splunk Web Interface
+## 6. Configuring the Splunk Web Interface (Via Target-PC)
 
-Splunk Web is available at:
+#### What I Learned: Testing Network Access via the Browser
+With the Splunk backend running on our Ubuntu server, I decided to configure the web interface directly from the Windows Target-PC. By navigating to the web portal from the victim machine, I was able to simultaneously configure the server and prove that our internal VM-to-VM network routing was working perfectly. 
+
+From the Windows Target-PC browser, Splunk Web is accessed at:
 
 ```text
-http://192.168.10.10:8000
+[http://192.168.10.10:8000](http://192.168.10.10:8000)
 ```
 
-<img width="600" alt="placeholder" src="[INSERT_IMAGE_LINK]" />
+<img width="945" height="572" alt="image" src="https://github.com/user-attachments/assets/bf831173-fdfa-4bfd-ba0c-853403c92c15" />
+
 
 ### Creating the `endpoint` Index
 
@@ -232,7 +236,8 @@ From Splunk Web:
 3. Name it `endpoint`.
 4. Save.
 
-<img width="600" alt="placeholder" src="[INSERT_IMAGE_LINK]" />
+<img width="938" height="431" alt="endpointcreated" src="https://github.com/user-attachments/assets/204d504c-f7bf-4b80-b548-fa00d2d4991a" />
+
 
 ### Opening Port 9997
 
@@ -248,51 +253,25 @@ From Splunk Web:
 4. Enter `9997`.
 5. Save.
 
-<img width="600" alt="placeholder" src="[INSERT_IMAGE_LINK]" />
+<img width="956" height="207" alt="configuredport9997" src="https://github.com/user-attachments/assets/f324c1b8-d12b-4657-991f-8a187b067baf" />
+
 
 ---
 
-## 7. Preparing the Target Machine (Windows)
+## 7. Verifying Data Ingestion
 
-Now that the Splunk server is ready to receive data, I can prepare the Windows target machine that will generate the logs.
+With the server configured, the Universal Forwarder installed on the Windows machine, and Sysmon actively running, the final step is to prove that the entire logging pipeline actually works.
 
-### Setting the Hostname
+#### What I Learned: The End-to-End Test
+By querying the `endpoint` index we created earlier, we can verify that telemetry is successfully leaving the Target-PC, crossing our virtual network, and being ingested by the Splunk SIEM. If this search returns data, it confirms our `inputs.conf` file, service permissions, and port 9997 configurations are all correct.
 
-I rename the Windows machine to `Target-PC` through **System Properties** and restart it.
+**Steps Taken:**
+1. In Splunk Web (accessed via `http://192.168.10.10:8000`), navigated to **Apps > Search & Reporting**.
+2. In the search bar, typed the query: `index=endpoint`
+3. Adjusted the time picker to **Last 24 hours** and clicked the Search icon (magnifying glass).
+4. Verified that events were successfully populating the dashboard. 
 
-<img width="600" alt="placeholder" src="[INSERT_IMAGE_LINK]" />
+Looking at the search results, I can confirm the configuration is successful because under the **Fields** sidebar on the left, the `host` is correctly identified as **Target-PC**, and the `sourcetype` displays our expected Windows Event Logs alongside the **XmlWinEventLog:Microsoft-Windows-Sysmon** data. 
 
-#### What I Learned
+<img width="1562" height="777" alt="image" src="https://github.com/user-attachments/assets/bf79f2a0-41e4-4c6f-a292-75c176df2d88" />
 
-Using a clear hostname makes it easier to identify the machine when its events appear in Splunk.
-
-### Setting a Static IP
-
-I configure the Windows machine with:
-
-```text
-IP Address:    192.168.10.100
-Subnet Mask:   255.255.255.0
-Gateway:       192.168.10.2
-DNS:           8.8.8.8
-```
-
-<img width="600" alt="placeholder" src="[INSERT_IMAGE_LINK]" />
-
-The Splunk server uses `192.168.10.10`, so the Windows target gets `.100` to keep the addresses separate.
-
-#### What I Learned
-
-The gateway is `192.168.10.2` because this is the VMware NAT gateway identified earlier in the lab.
-
-### Verifying Connectivity
-
-From the Windows Command Prompt:
-
-```cmd
-ping 192.168.10.10
-```
-
-<img width="600" alt="placeholder" src="[INSERT_IMAGE_LINK]" />
-
-A successful ping confirms that the Windows target can reach the Splunk server. This gives me a working network connection before I install and configure the Universal Forwarder.
